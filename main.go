@@ -39,6 +39,10 @@ type Test struct {
 
 func NewLoadTest(users int, duration int, rampMode RampMode, rampAmount int) Test {
 
+	if rampAmount > users {
+		log.Fatalf("You can't ramp more users than you have available to test. Users: %d, Ramp Amout: %d\n", users, rampAmount)
+	}
+
 	return Test{
 		Users:    users,
 		Duration: time.Duration(duration) * time.Second,
@@ -109,7 +113,7 @@ func (t Test) RampUpTestExplain(exec Execution) {
 		select {
 		case v := <-ch:
 			for i := 0; i < v; i++ {
-				go func(i int, v int) {
+				go func(i int, v int) { // Remove these parameters
 					fmt.Println(i, v) // Run function here
 				}(i, v) // Remove these parameters
 			}
@@ -122,6 +126,7 @@ func (t Test) RampUpTestExplain(exec Execution) {
 
 func (t Test) RampDownTest(exec Execution) {
 	ch := make(chan int, t.Users)
+	time.Sleep(t.Duration)
 	go func(ch chan<- int) {
 		for i := t.Users; ; i -= t.Ramp.RampAmount {
 			if i < 0 {
@@ -132,9 +137,8 @@ func (t Test) RampDownTest(exec Execution) {
 				break
 			} else {
 				for i := 0; i < t.Ramp.RampAmount; i++ {
-
+					ch <- 1
 				}
-				ch <- 1
 			}
 			time.Sleep(1 * time.Second)
 		}
@@ -148,7 +152,6 @@ func (t Test) RampDownTest(exec Execution) {
 					case <-ch:
 						return
 					case <-time.After(t.Duration + time.Duration(t.RampTime())):
-						log.Println("Load test has finished")
 						return
 					default:
 						exec()
@@ -158,6 +161,7 @@ func (t Test) RampDownTest(exec Execution) {
 		}
 
 		if runtime.NumGoroutine() == 1 {
+			log.Println("Load test has finished")
 			return
 		}
 	}
@@ -165,6 +169,7 @@ func (t Test) RampDownTest(exec Execution) {
 
 func (t Test) RampDownTestExplain(exec Execution) {
 	ch := make(chan int, t.Users)
+	time.Sleep(t.Duration)
 	go func(ch chan<- int) {
 		for i := t.Users; ; i -= t.Ramp.RampAmount {
 			if i < 0 {
@@ -175,32 +180,34 @@ func (t Test) RampDownTestExplain(exec Execution) {
 				break
 			} else {
 				for i := 0; i < t.Ramp.RampAmount; i++ {
-
+					ch <- 1
 				}
-				ch <- 1
+
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(time.Duration((int(t.Duration) / (int(t.Duration) / t.Ramp.RampAmount)) * int(time.Second)))
 		}
 	}(ch)
 
 	for i := 0; ; i++ {
-		if i < 3 {
+		if i < t.Users {
 			go func(i int) { // Remove this parameters
-				defer fmt.Println(i, "Dead") // Remove this log - Is outside of loop for educative reasons
-				fmt.Println(i)               // Run function here - Is outside of loop for educative reasons
+				defer log.Println(i, "Dead") // Remove this log - Is outside of loop for educative reasons
+				fmt.Println(i)               // Is outside of loop for educative reasons
 				for {
 					select {
 					case <-ch:
 						return
 					case <-time.After(t.Duration + time.Duration(t.RampTime())):
-						log.Println("Load test has finished")
 						return
+					default:
+						continue // Run function here
 					}
 				}
 			}(i) // Remove this parameters
 		}
 
 		if runtime.NumGoroutine() == 1 {
+			log.Println("Load test has finished")
 			return
 		}
 	}
@@ -215,4 +222,14 @@ func (t Test) RunTest(exec Execution) {
 		t.RampDownTest(exec)
 	}
 
+}
+
+func main() {
+	loadTest := NewLoadTest(10, 10, down, 2)
+
+	echo := func() {
+		fmt.Println("Echo!")
+	}
+
+	loadTest.RunTest(echo)
 }
