@@ -31,19 +31,19 @@ type Ramp struct {
 
 type Execution func()
 
-type Test struct {
+type LoadConfig struct {
 	Users    int
 	Duration time.Duration
 	Ramp     Ramp
 }
 
-func NewLoadTest(users int, duration int, rampMode RampMode, rampAmount int) Test {
+func NewLoadConfig(users int, duration int, rampMode RampMode, rampAmount int) LoadConfig {
 
 	if rampAmount > users {
 		log.Fatalf("You can't ramp more users than you have available to test. Users: %d, Ramp Amout: %d\n", users, rampAmount)
 	}
 
-	return Test{
+	return LoadConfig{
 		Users:    users,
 		Duration: time.Duration(duration) * time.Second,
 		Ramp: Ramp{
@@ -53,7 +53,7 @@ func NewLoadTest(users int, duration int, rampMode RampMode, rampAmount int) Tes
 	}
 }
 
-func (t Test) RampTime() int {
+func (t LoadConfig) RampTime() int {
 
 	rampTime := t.Users / t.Ramp.RampAmount
 
@@ -64,7 +64,7 @@ func (t Test) RampTime() int {
 	}
 }
 
-func (t Test) RampUpTest(exec Execution) {
+func (t LoadConfig) RampUpLoad(exec Execution) {
 	ch := make(chan int, t.Users)
 	go func(ch chan<- int) {
 		for i := t.Ramp.RampAmount; ; i += t.Ramp.RampAmount {
@@ -94,7 +94,7 @@ func (t Test) RampUpTest(exec Execution) {
 	}
 }
 
-func (t Test) RampUpTestExplain(exec Execution) {
+func (t LoadConfig) RampUpLoadExplain(exec Execution) {
 	ch := make(chan int, t.Users)
 	go func(ch chan<- int) {
 		for i := t.Ramp.RampAmount; ; i += t.Ramp.RampAmount {
@@ -124,7 +124,7 @@ func (t Test) RampUpTestExplain(exec Execution) {
 	}
 }
 
-func (t Test) RampDownTest(exec Execution) {
+func (t LoadConfig) RampDownLoad(exec Execution) {
 	ch := make(chan int, t.Users)
 	time.Sleep(t.Duration)
 	go func(ch chan<- int) {
@@ -167,7 +167,7 @@ func (t Test) RampDownTest(exec Execution) {
 	}
 }
 
-func (t Test) RampDownTestExplain(exec Execution) {
+func (t LoadConfig) RampDownLoadExplain(exec Execution) {
 	ch := make(chan int, t.Users)
 	time.Sleep(t.Duration)
 	go func(ch chan<- int) {
@@ -213,23 +213,13 @@ func (t Test) RampDownTestExplain(exec Execution) {
 	}
 }
 
-func (t Test) RunTest(exec Execution) {
+func (t LoadConfig) RunLoad(exec Execution) {
 	log.Println("Test will simulate", t.Users, "users over", t.Duration, "ramping", t.Ramp.RampMode.String(), t.Ramp.RampAmount, "users per second.")
 
 	if t.Ramp.RampMode == up {
-		t.RampUpTest(exec)
+		t.RampUpLoad(exec)
 	} else {
-		t.RampDownTest(exec)
+		t.RampDownLoad(exec)
 	}
 
-}
-
-func main() {
-	loadTest := NewLoadTest(10, 10, down, 2)
-
-	echo := func() {
-		fmt.Println("Echo!")
-	}
-
-	loadTest.RunTest(echo)
 }
