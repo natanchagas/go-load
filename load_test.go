@@ -46,3 +46,31 @@ func TestNewLoadConfig(t *testing.T) {
 	})
 
 }
+
+func TestRampTime(t *testing.T) {
+	assert := func(t testing.TB, got int, want int) {
+		t.Helper()
+
+		if got != want {
+			t.Errorf("Got: %v,\nWant: %v", got, want)
+		}
+	}
+
+	t.Run("Exact division", func(t *testing.T) {
+		loadConfig := NewLoadConfig(10, 10, up, 2)
+		rampTime := loadConfig.RampTime()
+
+		desired := 5
+
+		assert(t, rampTime, desired)
+	})
+
+	t.Run("Inexact division", func(t *testing.T) {
+		loadConfig := NewLoadConfig(10, 10, up, 3)
+		rampTime := loadConfig.RampTime()
+
+		desired := 4
+
+		assert(t, rampTime, desired)
+	})
+}
